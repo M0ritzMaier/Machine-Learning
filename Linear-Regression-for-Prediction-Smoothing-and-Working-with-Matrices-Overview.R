@@ -244,5 +244,46 @@ image(1:28, 1:28, grid[,28:1])
 sums <- rowSums(x)
 avg <- rowMeans(x)
 
+# Variation of each pixel
+tryCatch(library(matrixStats), error = function(e) {
+  install.packages("matrixStats")
+  library(matrixStats)})
+# Standard deviation of each column
+sds <- colSds(x)
 
+# Distribution of the sds
+ggplot() + geom_histogram(aes(sds), binwidth = 1)
 
+# Remove features (pixels) with low variation because they are uninfomrmative predictors
+new_x <- x[, colSds(x) > 60]
+dim(new_x)
+
+# Convert matrices to vectors
+as.vector(mat)
+
+# Histogram of all our predictors
+qplot(as.vector(x), bins = 30, color = I("black"))
+
+new_x <- x
+new_x[new_x < 50] <- 0
+
+# Binarize the data
+bin_x <- x
+bin_x[bin_x < 255/2] <- 0
+bin_x[bin_x > 255/2] <- 1
+
+# alternative: Using Booleans and convert T/F into 0/1
+binx_X <- (x > 255/2)*1
+
+# Standardizing the rows
+(x - rowMeans(x)) / rowSds(x)
+
+# Sweep function 
+x_mean_0 <- sweep(x, 2, colMeans(x))
+x_standardized <- sweep(x_mean_0, 2, colSds(x), FUN = "/")
+
+# Crossproduct
+t(x) %*% x
+crossprod(x)
+solve(crossprod(x))
+qr(x)
