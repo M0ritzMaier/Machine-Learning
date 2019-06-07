@@ -10,6 +10,7 @@ library(dslabs)
 library(caret)
 library(rpart)
 library(randomForest)
+library(gam)
 
 #----           Trees Motivation                ----
 # avoid the curse of dimensionality
@@ -173,3 +174,80 @@ confusionMatrix(data = predict(fit, mnist_27$test), mnist_27$test$y)
 #  - lose interpretability, by averaging many, many trees
 # however variable importants helps us to interpret the results
 #  => How much each predicor influences the final predictions
+
+
+#----           Caret Package              ----
+data("mnist_27")
+
+# train-function
+#       trains different algorithms
+#               e.g. logistic regression model or knn model
+train_glm <- train(y~., method = "glm", data = mnist_27$train)
+train_glm
+train_knn <- train(y~., method = "knn", data = mnist_27$train)
+train_knn
+
+# predict.train-function
+#       makes predictions
+y_hat_glm <- predict(train_glm, mnist_27$test, ttype = "raw")
+y_hat_glm
+
+y_hat_knn <- predict(train_knn, mnist_27$test, ttype = "raw")
+y_hat_knn
+
+# Confusion Matrix
+confusionMatrix(data = y_hat_glm, reference = mnist_27$test$y)
+confusionMatrix(data = y_hat_knn, reference = mnist_27$test$y)
+
+
+
+#----           Tuning Parameters with Caret              ----
+# Tuning parameter is used to automatically apply cross-validation
+
+# knn
+# default value => cross validation by testing on 25 bootstrap samples comprised of 25% of the observations
+#                  and for k = 5, 7, 9
+train_knn <- train(y~., method = "knn", data = mnist_27$train)
+ggplot(train_knn, highlight = T)
+
+# With tuneGrid
+train_knn <- train(y~., method = "knn", data = mnist_27$train, tuneGrid = data.frame(k = seq(9, 71, 2)))
+ggplot(train_knn, highlight = T)
+
+# best k
+train_knn$bestTune
+
+# best performing model
+train_knn$finalModel
+
+# Cross validation is performed on the train set, so to get accuracy for the test set we use the confusion matrix
+confusionMatrix(data = y_hat_knn, reference = mnist_27$test$y)
+
+# trainControl-function: Change the way the cross validation is performed
+#       e.g. faster => 10-fold cross-validation => gives us 10 validation samples so that each uses 10% of the observations
+control <- trainControl(method = "cv", number = 10, p = .9)
+train_knn_cv <- train(y ~ ., method = "knn", data = mnist_27$train, tuneGrid = data.frame(k = seq(9, 71, 2)), 
+                      trControl = control)
+ggplot(train_knn_cv, highlight = T)
+
+# Estimates and standard deviation of testet models
+train_knn$results %>% 
+        ggplot(aes(x = k, y = Accuracy)) +
+        geom_line() +
+        geom_point() +
+        geom_errorbar(aes(x = k, 
+                          ymin = Accuracy - AccuracySD, 
+                          ymax = Accuracy + AccuracySD))
+
+
+# Smooth knn with gamLoess
+modelLookup("gamLoess")
+
+# grid with all possible paramter combinations
+grid <- expand.grid(span = seq(0.15, 0.65, len = 10), degree = 1)
+
+train_loess <- train(y ~., data = mnist_27$train, method ="gamLoess", tuneGrid = grid)
+ggplot(train_loess, highlight = T)
+
+
+confusionMatrix(data = predict(train_loess, mnist_27$test), reference = mnist_27$test$y)
